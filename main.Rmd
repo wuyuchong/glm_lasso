@@ -1,0 +1,134 @@
+---
+title: "main"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(Matrix)
+```
+
+# 简介
+
+https://github.com/wuyuchong/glm_lasso
+
+# resp
+
+```{r}
+resp = function(x, beta, family)
+{
+  if(family == "logit")
+  {
+    eta = x %*% beta
+    expeta = exp(eta)
+    mu = expeta / (1 + expeta)
+    return(rbinom(nrow(mu) * ncol(mu), size = 1, prob = mu))
+  }
+  if(family == "probit")
+  {
+    mu = x %*% beta
+    return(rnorm(nrow(mu) * ncol(mu), mean = mu))
+  }
+  if(family == "poisson")
+  {
+    eta = x %*% beta
+    mu = exp(eta)
+    return(rpois(nrow(mu) * ncol(mu), lambda = mu))
+  }
+}
+mu = matrix(c(0, 1, 0, 1),2,2)
+nrow(mu) * ncol(mu)
+```
+
+
+# sigma_ma
+
+递归容易超过限制（p = 1000）
+
+```{r}
+sigma_ma = function(p, rho)
+{
+  if(p == 1)
+  {
+    return(matrix(1, 1, 1))
+  } else
+  {
+    mat_left = matrix(rho ^ seq(p - 1, 1, -1),
+                      nrow = p - 1, ncol = 1)
+    mat_below = matrix(rho ^ seq(p - 1, 0, -1),
+                       nrow = 1, ncol = p)
+    mat_above = cbind(sigma_ma(p - 1, rho), mat_left)
+    return(rbind(mat_above, mat_below))
+  }
+}
+```
+
+改成循环拼接
+
+```{r}
+sigma_ma = function(p, rho)
+{
+  accum = matrix(1, 1, 1)
+  for(i in 2:p)
+  {
+    mat_left = matrix(rho ^ seq(i - 1, 1, -1),
+                      nrow = i - 1, ncol = 1)
+    mat_below = matrix(rho ^ seq(i - 1, 0, -1),
+                       nrow = 1, ncol = i)
+    mat_above = cbind(accum, mat_left)
+    accum = rbind(mat_above, mat_below)
+  }
+  return(accum)
+}
+```
+
+# sim_data
+
+```{r}
+sim_data = function(beta, rho, n, family)
+{
+  p = length(beta)
+  cov = sigma_ma(p - 1, rho) # matrix
+  uper_mat = chol(cov)
+  x = matrix(rnorm(n*(p - 1)), n, p - 1)
+  x = x %*% uper_mat
+  x_1 = cbind(rep(1, n), x)
+  y = resp(x_1, beta, family)
+  return(list(x, y))
+}
+```
+
+# logit_lasso
+
+
+
+# main
+
+## 模拟数据
+
+```{r}
+family = "logit"
+rho = 0.5
+n = 400
+p = 1000 
+s = 6
+pmax = 10
+beta_0 = c(0.05, 3, -2.5, 3.5, -1.5, -3)
+beta_1 = rep(0, p - s)
+beta = c(beta_0, beta_1)
+sim = sim_data(beta, rho, n, family)
+x = sim[[1]]
+y = sim[[2]]
+```
+
+## 模型求解
+
+```{r}
+b, is_active, lamb, df = logit_lasso(x, y, pmax=10)
+```
+
+
+
+
+
+
