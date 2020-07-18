@@ -146,12 +146,10 @@ updating = function(left_mat, xxk, xkxk)
   lk = backsolve(left_mat, xxk)
   lkk = sqrt(xkxk - sum(lk * lk))
   left_mat_up = cbind(left_mat, rep(0,10))
-  left_mat_down = rbind(lk, lkk) # not sure cbind or rbind
+  left_mat_down = c(lk, lkk) # not sure cbind or rbind
   return(rbind(left_mat_up, matrix(left_mat_down, nrow = 1, ncol = (k+1))))
 }
 ```
-
-
 
 # lars_iter
 
@@ -340,7 +338,7 @@ logit_lasso_init = function(x, xt, y, n, p)
   w = mu * (1 - mu)
   b = rep(0, p)
   b[1] = log(y_mean / (1 - y_mean))
-  cc = xt %*% (y - mu)
+  cc = as.vector(xt %*% (y - mu))
   s = sign(cc)
   s[1] = 0
   cc_abs = cc * s
@@ -352,14 +350,14 @@ logit_lasso_init = function(x, xt, y, n, p)
   is_active = c(TRUE, rep(FALSE, p - 1))
   is_active_ = is_active
   is_active_[j] = TRUE
-  xt_a = xt[is_active_]
+  xt_a = xt[is_active_,]
   x_a = x[, is_active_]
   xtx_a = (xt_a * w) %*% x_a
   left_mat = t(chol(xtx_a))
   sa = s[is_active_]
   d = forwardsolve(left_mat, forwardsolve(left_mat, sa), transp=TRUE)
-  u = d %*% xt[is_active_]
-  a = xt[!is_active_] %*% u * w
+  u = as.vector(d %*% xt[is_active_,])
+  a = as.vector(xt[!is_active_,] %*% (u * w))
   gam = rep(1, p) * lamb
   judge = a * lamb <= cc[!is_active_]
   temp = gam[!is_active_]
