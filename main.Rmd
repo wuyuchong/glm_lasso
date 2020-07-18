@@ -98,6 +98,61 @@ sim_data = function(beta, rho, n, family)
 }
 ```
 
+# downdating
+
+```{r}
+gives_tran = function(mx, lmx)
+{
+  mc = mx[1] / lmx
+  ms = mx[2] / lmx
+  tran_mat = matrix(c(mc, -ms, ms, mc), nrow = 2, ncol = 2, byrow = TRUE)
+  return(tran_mat)
+}
+
+downdating = function(left_mat, k)
+{
+  p = dim(left_mat)[1]
+  p = p - 1
+  if(k > p)
+  {
+    return("Wrong input of k!")
+  }
+  left_mat_k = left_mat[-(k+1),]
+  mk = k
+  while(mk < p)
+  {
+    mx = left_mat_k[(mk+1), (mk+1):(mk+2)]
+    lmx = sqrt(sum(mx^2))
+    left_mat_k[mk + 1, mk + 1] = lmx
+    left_mat_k[mk + 1, mk + 2] = 0
+    if(mk < p - 1)
+    {
+      tmp_mat = left_mat_k[(mk + 2):p, (mk + 1):(mk + 2)]
+      tmp_mat = tmp_mat %*% gives_tran(mx, lmx)
+      left_mat_k[(mk + 2):p, (mk + 1):(mk + 2)] = tmp_mat
+    }
+    mk = mk + 1
+  }
+  return(left_mat_k[,-(p+1)])
+}
+```
+
+# updating
+
+```{r}
+updating = function(left_mat, xxk, xkxk)
+{
+  k = dim(left_mat)[1]
+  lk = backsolve(left_mat, xxk)
+  lkk = sqrt(xkxk - sum(lk * lk))
+  left_mat_up = cbind(left_mat, rep(0,10))
+  left_mat_down = rbind(lk, lkk) # not sure cbind or rbind
+  return(rbind(left_mat_up, matrix(left_mat_down, nrow = 1, ncol = (k+1))))
+}
+```
+
+
+
 # lars_iter
 
 ## lars_init
@@ -244,13 +299,34 @@ lars_iter = function(y, xt, b_, is_active_, lamb, pmax)
       b = b_
       is_active = is_active_
       df = df_t
-      
+      is_active_next = is_active
+      if(df < pmax)
+      {
+        b_next = b_t
+        if(gam_min_t != gam_min)
+        {
+          lamb_next = lamb - (gam_min - gam_min_t)
+          b_next[active_set_t] = b_next[active_set_t] + (gam_min - gam_min_t) * d_t
+        } else
+        {
+          list = lars_step(xt, w, p, b_t, cc_t, active_set_t, is_active_t, left_mat_t, lamb_t, df_t)
+          gam = list[[1]]
+          d_t = list[[2]]
+          j = which(gam == min(gam))[1]
+          gam_min = gam[j]
+          lamb_next = lamb - gam_min
+          b_next[active_set_t] = b_next[active_set_t] + gam_min * d_t
+          if(lamb - lamb_next < 0.01)
+          {
+            lamb_next = lamb * 0.95
+          }
+        }
+      }
+      break
     }
   }
 }
 ```
-
-
 
 # logit_lasso
 
