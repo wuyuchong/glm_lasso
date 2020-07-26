@@ -386,7 +386,7 @@ pmax = 10
 beta_0 = c(0.05, 3, -2.5, 3.5, -1.5, -3)
 beta_1 = rep(0, p - s)
 beta = c(beta_0, beta_1)
-# sim = sim_data(beta, rho, n, family)
+sim = sim_data(beta, rho, n, family)
 x = sim[[1]]
 y = sim[[2]]
 
