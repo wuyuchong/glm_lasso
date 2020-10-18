@@ -1,6 +1,19 @@
 ---
-title: "main"
-output: html_document
+documentclass: ctexart
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+    template: template.tex
+classoption: "hyperref,"
+geometry: margin=1in
+header-includes:
+   - \usepackage{graphicx}
+   - \usepackage{float}
+   - \usepackage{indentfirst}
+   - \setlength{\parindent}{4em}
+logo: "cufe.jpg"
 ---
 
 ```{r setup, include=FALSE}
@@ -38,8 +51,6 @@ resp = function(x, beta, family)
     return(rpois(nrow(mu) * ncol(mu), lambda = mu))
   }
 }
-mu = matrix(c(0, 1, 0, 1),2,2)
-nrow(mu) * ncol(mu)
 ```
 
 
@@ -347,7 +358,7 @@ logit_lasso_init = function(x, xt, y, n, p)
   s = sign(cc)
   s[1] = 0
   cc_abs = cc * s
-  cc_abs[0] = 0
+  cc_abs[1] = 0
   tmp = cc * s
   j = which(tmp == max(tmp))[1]
   rm(tmp)
@@ -421,7 +432,7 @@ logit_lasso = function(x, y, pmax)
 
 # main
 
-## 模拟数据
+## Data Simulation
 
 ```{r}
 family = "logit"
@@ -438,7 +449,7 @@ x = sim[[1]]
 y = sim[[2]]
 ```
 
-## 模型求解
+## A Test Case
 
 ```{r}
 model = logit_lasso(x, y, pmax=10)
