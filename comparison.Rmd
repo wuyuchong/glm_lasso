@@ -19,6 +19,8 @@ logo: "cufe.jpg"
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(Matrix)
+library(glmnet)
+# install.packages("glmnet")
 ```
 
 # Introduction
@@ -464,5 +466,21 @@ print(lamb)
 
 length(is_active)
 ```
+
+
+# glmnet
+
+```{r}
+library(glmnet)
+cyclical
+```
+
+
+
+
+
+
+
+
 
 
