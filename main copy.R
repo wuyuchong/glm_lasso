@@ -1,35 +1,8 @@
----
-documentclass: ctexart
-output:
-  rticles::ctex:
-    fig_caption: yes
-    number_sections: yes
-    toc: yes
-    template: template.tex
-classoption: "hyperref,"
-geometry: margin=1in
-header-includes:
-   - \usepackage{graphicx}
-   - \usepackage{float}
-   - \usepackage{indentfirst}
-   - \setlength{\parindent}{4em}
-logo: "cufe.jpg"
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+## ----setup, include=FALSE----------------------------------------------------------------------------------
 library(Matrix)
-```
 
-# Introduction
 
-This document contains definitions of all the functions as well as a test case for the algorithm in the end of the article.
-
-[Here is the source file for the algorithm on github.](https://github.com/wuyuchong/glm_lasso)
-
-# resp
-
-```{r}
+## ----------------------------------------------------------------------------------------------------------
 resp = function(x, beta, family)
 {
   if(family == "logit")
@@ -51,14 +24,9 @@ resp = function(x, beta, family)
     return(rpois(nrow(mu) * ncol(mu), lambda = mu))
   }
 }
-```
 
 
-# sigma_ma
-
-递归容易超过限制（p = 1000）
-
-```{r}
+## ----------------------------------------------------------------------------------------------------------
 sigma_ma = function(p, rho)
 {
   if(p == 1)
@@ -74,11 +42,9 @@ sigma_ma = function(p, rho)
     return(rbind(mat_above, mat_below))
   }
 }
-```
 
-改成循环拼接
 
-```{r}
+## ----------------------------------------------------------------------------------------------------------
 sigma_ma = function(p, rho)
 {
   accum = matrix(1, 1, 1)
@@ -93,11 +59,9 @@ sigma_ma = function(p, rho)
   }
   return(accum)
 }
-```
 
-# sim_data
 
-```{r}
+## ----------------------------------------------------------------------------------------------------------
 sim_data = function(beta, rho, n, family)
 {
   p = length(beta)
@@ -109,11 +73,9 @@ sim_data = function(beta, rho, n, family)
   y = resp(x_1, beta, family)
   return(list(x, y))
 }
-```
 
-# downdating
 
-```{r}
+## ----------------------------------------------------------------------------------------------------------
 gives_tran = function(mx, lmx)
 {
   mc = mx[1] / lmx
@@ -148,11 +110,9 @@ downdating = function(left_mat, k)
   }
   return(left_mat_k[,-(p+1)])
 }
-```
 
-# updating
 
-```{r}
+## ----------------------------------------------------------------------------------------------------------
 updating = function(left_mat, xxk, xkxk)
 {
   k = dim(left_mat)[1]
@@ -162,13 +122,9 @@ updating = function(left_mat, xxk, xkxk)
   left_mat_down = c(lk, lkk) # not sure cbind or rbind
   return(rbind(left_mat_up, matrix(left_mat_down, nrow = 1, ncol = (k+1))))
 }
-```
 
-# lars_iter
 
-## lars_init
-
-```{r}
+## ----------------------------------------------------------------------------------------------------------
 lars_init = function(w, xt, cc_t, is_active_t, active_set_t)
 {
   cc_t_abs = abs(cc_t)
@@ -181,11 +137,9 @@ lars_init = function(w, xt, cc_t, is_active_t, active_set_t)
   xtx_a = (xt_a * w) %*% t(xt_a)
   return(list(lamb_t, t(chol(xtx_a)), is_active_t, active_set_t))
 }
-```
 
-## lars_step
 
-```{r}
+## ----------------------------------------------------------------------------------------------------------
 lars_step = function(xt, w, p, b_t, cc_t, active_set_t, is_active_t, left_mat_t, lamb_t, df_t)
 {
   s_t = sign(cc_t)
@@ -209,11 +163,9 @@ lars_step = function(xt, w, p, b_t, cc_t, active_set_t, is_active_t, left_mat_t,
   }
   return(list(gam, d_t, sa_t, a_t))
 }
-```
 
-## lars_iter
 
-```{r}
+## ----------------------------------------------------------------------------------------------------------
 lars_iter = function(y, xt, b_, is_active_, lamb, pmax)
 {
   #  -----------------------------输入参数--------------------------------------------  #
@@ -342,13 +294,9 @@ lars_iter = function(y, xt, b_, is_active_, lamb, pmax)
   }
   return(list(b, is_active, df, lamb_next, b_next, is_active_next))
 }
-```
 
-# logit_lasso
 
-## logit_lasso_init
-
-```{r}
+## ----------------------------------------------------------------------------------------------------------
 logit_lasso_init = function(x, xt, y, n, p)
 {
   y_mean = mean(y)
@@ -389,11 +337,9 @@ logit_lasso_init = function(x, xt, y, n, p)
   lamb_ = lamb - gam_min
   return(list(lamb, b, is_active, lamb_, b_, is_active_))
 }
-```
 
-## logit_lasso
 
-```{r}
+## ----------------------------------------------------------------------------------------------------------
 logit_lasso = function(x, y, pmax)
 {
   n = dim(x)[1]
@@ -423,18 +369,15 @@ logit_lasso = function(x, y, pmax)
     b_ = outcome[[5]]
     is_active_ = outcome[[6]]
     rm(outcome)
-    cat("df=", df, "|")
-    print(b[is_active])
   }
   return(list(b, is_active, lamb, df))
 }
-```
 
-# main
+
+
 
 ## Data Simulation
 
-```{r}
 family = "logit"
 rho = 0.5
 n = 400
@@ -447,11 +390,11 @@ beta = c(beta_0, beta_1)
 #sim = sim_data(beta, rho, n, family)
 x = sim[[1]]
 y = sim[[2]]
-```
+
+
 
 ## A Test Case
 
-```{r}
 model = logit_lasso(x, y, pmax=10)
 b = model[[1]]
 is_active = model[[2]]
@@ -461,5 +404,3 @@ df = model[[4]]
 print(b[1:10])
 print(b[is_active])
 print(lamb)
-```
-

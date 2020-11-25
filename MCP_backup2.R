@@ -1,35 +1,8 @@
----
-documentclass: ctexart
-output:
-  rticles::ctex:
-    fig_caption: yes
-    number_sections: yes
-    toc: yes
-    template: template.tex
-classoption: "hyperref,"
-geometry: margin=1in
-header-includes:
-   - \usepackage{graphicx}
-   - \usepackage{float}
-   - \usepackage{indentfirst}
-   - \setlength{\parindent}{4em}
-logo: "cufe.jpg"
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+## ----setup, include=FALSE----------------------------------------------------------------------------------
 library(Matrix)
-```
 
-# Introduction
 
-This document contains definitions of all the functions as well as a test case for the algorithm in the end of the article.
-
-[Here is the source file for the algorithm on github.](https://github.com/wuyuchong/glm_lasso)
-
-# resp
-
-```{r}
+## ----------------------------------------------------------------------------------------------------------
 resp = function(x, beta, family)
 {
   if(family == "logit")
@@ -51,14 +24,9 @@ resp = function(x, beta, family)
     return(rpois(nrow(mu) * ncol(mu), lambda = mu))
   }
 }
-```
 
 
-# sigma_ma
-
-递归容易超过限制（p = 1000）
-
-```{r}
+## ----------------------------------------------------------------------------------------------------------
 sigma_ma = function(p, rho)
 {
   if(p == 1)
@@ -74,11 +42,9 @@ sigma_ma = function(p, rho)
     return(rbind(mat_above, mat_below))
   }
 }
-```
 
-改成循环拼接
 
-```{r}
+## ----------------------------------------------------------------------------------------------------------
 sigma_ma = function(p, rho)
 {
   accum = matrix(1, 1, 1)
@@ -93,11 +59,9 @@ sigma_ma = function(p, rho)
   }
   return(accum)
 }
-```
 
-# sim_data
 
-```{r}
+## ----------------------------------------------------------------------------------------------------------
 sim_data = function(beta, rho, n, family)
 {
   p = length(beta)
@@ -109,11 +73,9 @@ sim_data = function(beta, rho, n, family)
   y = resp(x_1, beta, family)
   return(list(x, y))
 }
-```
 
-# downdating
 
-```{r}
+## ----------------------------------------------------------------------------------------------------------
 gives_tran = function(mx, lmx)
 {
   mc = mx[1] / lmx
@@ -148,11 +110,9 @@ downdating = function(left_mat, k)
   }
   return(left_mat_k[,-(p+1)])
 }
-```
 
-# updating
 
-```{r}
+## ----------------------------------------------------------------------------------------------------------
 updating = function(left_mat, xxk, xkxk)
 {
   k = dim(left_mat)[1]
@@ -162,31 +122,31 @@ updating = function(left_mat, xxk, xkxk)
   left_mat_down = c(lk, lkk) # not sure cbind or rbind
   return(rbind(left_mat_up, matrix(left_mat_down, nrow = 1, ncol = (k+1))))
 }
-```
 
-# lars_iter
 
-## lars_init
-
-```{r}
-lars_init = function(w, xt, cc_t, is_active_t, active_set_t)
+## ----------------------------------------------------------------------------------------------------------
+lars_init = function(w, xt, cc_t, is_active_t, is_active_1_t, is_active_2_t, active_set_t, active_set_1_t, active_set_2_t)
 {
   cc_t_abs = abs(cc_t)
   cci_t = which(cc_t_abs == max(cc_t_abs))[1]
   cc_t_max = cc_t_abs[cci_t]
   lamb_t = cc_t_max
   is_active_t[cci_t] = TRUE
+  is_active_1_t[cci_t] = TRUE
   active_set_t = c(active_set_t, cci_t)
+  active_set_1_t = c(active_set_1_t, cci_t)
   xt_a = xt[is_active_t,]
   xtx_a = (xt_a * w) %*% t(xt_a)
-  return(list(lamb_t, t(chol(xtx_a)), is_active_t, active_set_t))
+  temp = matrix(0, nrow = length(is_active_[is_active_ == TRUE]), ncol = length(is_active_[is_active_ == TRUE]))
+  temp[is_active_1_[is_active_ == TRUE], is_active_1_[is_active_ == TRUE]] = 1 / gamma
+  left_mat_t = t(chol(xtx_a - temp))
+  rm(temp)
+  return(list(lamb_t, left_mat_t, is_active_t, is_active_1_t, is_active_2_t, active_set_t, active_set_1_t, active_set_2_t))
 }
-```
 
-## lars_step
 
-```{r}
-lars_step = function(xt, w, p, b_t, cc_t, active_set_t, is_active_t, left_mat_t, lamb_t, df_t)
+## ----------------------------------------------------------------------------------------------------------
+lars_step = function(xt, w, p, b_t, cc_t, active_set_t, active_set_1_t, active_set_2_t, is_active_t, is_active_1_t, is_active_2_t, left_mat_t, lamb_t, df_t, gamma)
 {
   s_t = sign(cc_t)
   sa_t = s_t[active_set_t]
@@ -198,23 +158,23 @@ lars_step = function(xt, w, p, b_t, cc_t, active_set_t, is_active_t, left_mat_t,
   if(df_t > 1)
   {
     ww = - b_t[active_set_t] / d_t
-    gam[active_set_t] = ifelse((ww > 0) & (ww < lamb_t), ww, lamb_t)
+    temp = ifelse(ww < lamb_t * gamma, ww, (gamma * lamb_t - abs(b_t[active_set_1_t])) / (abs(d_t) + gamma))
+    gam[active_set_1_t] = ifelse(ww > 0, temp, lamb_t)
+    rm(temp)
     gam[1] = lamb_t
   }
   if(df_t < (p - 1))
   {
-    gam[!is_active_t] = ifelse((a_t * lamb_t) <= cc_t[!is_active_t],
+    gam[!is_active_t] = ifelse((a_t * lamb_t * gamma) <= cc_t[!is_active_t],
                                (lamb_t - cc_t[!is_active_t]) / (1 - a_t),
                                (lamb_t + cc_t[!is_active_t]) / (1 + a_t))
   }
   return(list(gam, d_t, sa_t, a_t))
 }
-```
 
-## lars_iter
 
-```{r}
-lars_iter = function(y, xt, b_, is_active_, lamb, pmax)
+## ----------------------------------------------------------------------------------------------------------
+lars_iter = function(y, xt, b_, is_active_, is_active_1_, is_active_2_, lamb, pmax, gamma)
 {
   #  -----------------------------输入参数--------------------------------------------  #
   #  y: 因变量，一维数组, shape = (n, ); xt: 自变量, 二维数组, shape = (p, n)
@@ -225,10 +185,14 @@ lars_iter = function(y, xt, b_, is_active_, lamb, pmax)
   #  --------------------------------------------------------------------------------  #
   b = NULL
   is_active = NULL
+  is_active_1 = NULL
+  is_active_2 = NULL
   df = NULL
   lamb_next = NULL
   b_next = NULL
   is_active_next = NULL
+  is_active_1_next = NULL
+  is_active_2_next = NULL
   p = dim(xt)[1]
   n = dim(xt)[2]
   count1 = 0
@@ -242,25 +206,36 @@ lars_iter = function(y, xt, b_, is_active_, lamb, pmax)
     z = y - mu
     
     is_active_t = c(TRUE, rep(FALSE, p - 1))
+    is_active_1_t = c(TRUE, rep(FALSE, p - 1))
+    is_active_2_t = rep(FALSE, p - 1)
     active_set_t = c(1)
+    active_set_1_t = c(1)
+    active_set_2_t = NULL
     b_t = rep(0, p)
     b_t[1] = sum(eta * w + z) / sum(w)
     cc_t = as.vector((xt %*% ((eta * w) - (b_t[1] * w))) + as.vector(xt %*% z))
-    list = lars_init(w, xt, cc_t, is_active_t, active_set_t)
+    list = lars_init(w, xt, cc_t, is_active_t, is_active_1_t, is_active_2_t, active_set_t, active_set_1_t, active_set_2_t)
     lamb_t = list[[1]]
     left_mat_t = list[[2]]
     is_active_t = list[[3]]
-    active_set_t = list[[4]]
+    is_active_1_t = list[[4]]
+    is_active_2_t = list[[5]]
+    active_set_t = list[[6]]
+    active_set_1_t = list[[7]]
+    active_set_2_t = list[[8]]
     rm(list)
     count2 = 0
-    df_t = 1
+    df_t = length(is_active_t[is_active_t == TRUE])
+    # df_1_t = length(is_active_1_t[is_active_1_t == TRUE])
+    # df_2_t = length(is_active_2_t[is_active_2_t == TRUE])
+    # df_t = 1
     gam_min = NULL
     gam_min_t = NULL
     d_t = NULL
     while(count2 < (2 * p))
     {
       count2 = count2 + 1
-      list = lars_step(xt, w, p, b_t, cc_t, active_set_t, is_active_t, left_mat_t, lamb_t, df_t)
+      list = lars_step(xt, w, p, b_t, cc_t, active_set_t, active_set_1_t, active_set_2_t, is_active_t, is_active_1_t, is_active_2_t, left_mat_t, lamb_t, df_t, gamma)
       gam = list[[1]]
       d_t = list[[2]]
       sa_t = list[[3]]
@@ -268,7 +243,6 @@ lars_iter = function(y, xt, b_, is_active_, lamb, pmax)
       rm(list)
       j = which(gam == min(gam))[1]
       gam_min = gam[j]
-      
       if((lamb_t - gam_min) < lamb)
       {
         gam_min_t = lamb_t - lamb
@@ -280,41 +254,76 @@ lars_iter = function(y, xt, b_, is_active_, lamb, pmax)
       cc_t[active_set_t] = cc_t[active_set_t] - gam_min_t * sa_t
       cc_t[!is_active_t] = cc_t[!is_active_t] - gam_min_t * a_t
       lamb_t = lamb_t - gam_min_t
+      
       if(lamb_t > lamb)
       {
-        if(is_active_t[j])
+        if(is_active_1_t[j])
         {
-          k = which(active_set_t == j)[1]
-          active_set_t = active_set_t[-k]
-          left_mat_t = downdating(left_mat_t, k)
-          df_t = df_t - 1
-          print("变量退出")
-        } else
+          i = which(active_set_t == j)[1]
+          k = which(active_set_1_t == j)[1]
+          if(b_t[j] * d_t[i] < 0) # 1 -> 0
+          {
+            print("10")
+            active_set_1_t = active_set_1_t[-k]
+            active_set_t = active_set_t[-k]
+            left_mat_t = downdating(left_mat_t, k)
+            df_t = df_t - 1
+            is_active_t[j] = !is_active_t[j]
+            is_active_1_t[j] = !is_active_1_t[j]
+          } else # 1 -> 2
+          {
+            print("12")
+            active_set_1_t = active_set_1_t[-k]
+            active_set_2_t = c(active_set_2_t, j)
+            is_active_1_t[j] = !is_active_1_t[j]
+            is_active_2_t[j] = !is_active_2_t[j]
+          }
+        } else if(is_active_2_t[j]) # 2 -> 1
         {
+          print("21")
+          k = which(active_set_2_t == j)[1]
+          active_set_2_t = active_set_2_t[-k]
+          active_set_1_t = c(active_set_1_t, j)
+          is_active_1_t[j] = !is_active_1_t[j]
+          is_active_2_t[j] = !is_active_2_t[j]
+        } else # 0 -> 1
+        {
+          # print("01")
           xt_w = xt[j,] * w
           xtx_j = apply(xt[active_set_t,] * xt_w, 2, sum)
           xtx_jj = sum(xt[j,] * xt_w)
           left_mat_t = updating(left_mat_t, xtx_j, xtx_jj)
           active_set_t = c(active_set_t, j)
+          active_set_1_t = c(active_set_1_t, j)
           df_t = df_t + 1
+          # cat("df_t", df_t)
+          is_active_t[j] = !is_active_t[j]
+          is_active_1_t[j] = !is_active_1_t[j]
         }
-        is_active_t[j] = !is_active_t[j]
       } else
       {
+        # cat(" | break | ")
         break
       }
+      # cat(" | next | ")
     }
     eps = max(abs(b_t - b_))
     b_ = b_t
     # active_set_ = active_set_t
     is_active_ = is_active_t
+    is_active_1_ = is_active_1_t
+    is_active_2_ = is_active_2_t
     # is_active_next = is_active
     if(eps < 1e-8)
     {
       b = b_
       is_active = is_active_
+      is_active_1 = is_active_1_
+      is_active_2 = is_active_2_
       df = df_t
       is_active_next = is_active
+      is_active_next_1 = is_active_1
+      is_active_next_2 = is_active_2
       if(df < pmax)
       {
         b_next = b_t
@@ -324,7 +333,7 @@ lars_iter = function(y, xt, b_, is_active_, lamb, pmax)
           b_next[active_set_t] = b_next[active_set_t] + (gam_min - gam_min_t) * d_t
         } else
         {
-          list = lars_step(xt, w, p, b_t, cc_t, active_set_t, is_active_t, left_mat_t, lamb_t, df_t)
+          list = lars_step(xt, w, p, b_t, cc_t, active_set_t, active_set_1_t, active_set_2_t, is_active_t, is_active_1_t, is_active_2_t, left_mat_t, lamb_t, df_t, gamma)
           gam = list[[1]]
           d_t = list[[2]]
           j = which(gam == min(gam))[1]
@@ -337,19 +346,16 @@ lars_iter = function(y, xt, b_, is_active_, lamb, pmax)
           }
         }
       }
+      # cat(" | end | ")
       break
     }
   }
-  return(list(b, is_active, df, lamb_next, b_next, is_active_next))
+  return(list(b, is_active, is_active_1, is_active_2, df, lamb_next, b_next, is_active_next, is_active_next_1, is_active_next_2))
 }
-```
 
-# logit_lasso
 
-## logit_lasso_init
-
-```{r}
-logit_lasso_init = function(x, xt, y, n, p)
+## ----------------------------------------------------------------------------------------------------------
+logit_lasso_init = function(x, xt, y, n, p, gamma)
 {
   y_mean = mean(y)
   mu = y_mean * rep(1, n)
@@ -364,12 +370,20 @@ logit_lasso_init = function(x, xt, y, n, p)
   j = which(cc_abs == max(cc_abs))[1]
   lamb = cc_abs[j]
   is_active = c(TRUE, rep(FALSE, p - 1))
+  is_active_1 = c(TRUE, rep(FALSE, p - 1))
+  is_active_2 = rep(FALSE, p)
   is_active_ = is_active
+  is_active_1_ = is_active_1
+  is_active_2_ = is_active_2
   is_active_[j] = TRUE
+  is_active_1_[j] = TRUE
   xt_a = xt[is_active_,]
   x_a = x[, is_active_]
   xtx_a = (xt_a * w) %*% x_a
-  left_mat = t(chol(xtx_a))
+  temp = matrix(0, nrow = length(is_active_[is_active_ == TRUE]), ncol = length(is_active_[is_active_ == TRUE]))
+  temp[is_active_1_[is_active_ == TRUE], is_active_1_[is_active_ == TRUE]] = 1 / gamma
+  left_mat = t(chol(xtx_a - temp))
+  rm(temp)
   sa = s[is_active_]
   d = forwardsolve(left_mat, forwardsolve(left_mat, sa), transp=TRUE)
   u = as.vector(d %*% xt[is_active_,])
@@ -387,27 +401,29 @@ logit_lasso_init = function(x, xt, y, n, p)
   b_ = b
   b_[is_active_] = b_[is_active_] + gam_min * d
   lamb_ = lamb - gam_min
-  return(list(lamb, b, is_active, lamb_, b_, is_active_))
+  return(list(lamb, b, is_active, is_active_1, is_active_2, lamb_, b_, is_active_, is_active_1_, is_active_2_))
 }
-```
 
-## logit_lasso
 
-```{r}
-logit_lasso = function(x, y, pmax)
+## ----------------------------------------------------------------------------------------------------------
+logit_lasso = function(x, y, pmax, gamma)
 {
   n = dim(x)[1]
   p = dim(x)[2]
   p = p + 1
   x = cbind(rep(1, n), x)
   xt = t(x)
-  outcome = logit_lasso_init(x, xt, y, n, p)
+  outcome = logit_lasso_init(x, xt, y, n, p, gamma)
   lamb = outcome[[1]]
   b = outcome[[2]]
   is_active = outcome[[3]]
-  lamb_ = outcome[[4]]
-  b_ = outcome[[5]]
-  is_active_ = outcome[[6]]
+  is_active_1 = outcome[[4]]
+  is_active_2 = outcome[[5]]
+  lamb_ = outcome[[6]]
+  b_ = outcome[[7]]
+  is_active_ = outcome[[8]]
+  is_active_1_ = outcome[[9]]
+  is_active_2_ = outcome[[10]]
   rm(outcome)
   df = 0
   while(df < pmax)
@@ -415,51 +431,19 @@ logit_lasso = function(x, y, pmax)
     # 输入lamb_，初始值为 b_：
     # (1) 计算数值解b
     # (2) 如果活跃集元素个数小于pmax, 计算下一个lamb_和相应的初始值b_
-    outcome = lars_iter(y, xt, b_, is_active_, lamb_, pmax)
+    outcome = lars_iter(y, xt, b_, is_active_, is_active_1_, is_active_2_, lamb_, pmax, gamma)
     b = outcome[[1]]
     is_active = outcome[[2]]
-    df = outcome[[3]]
-    lamb_ = outcome[[4]]
-    b_ = outcome[[5]]
-    is_active_ = outcome[[6]]
+    is_active_1 = outcome[[3]]
+    is_active_2 = outcome[[4]]
+    df = outcome[[5]]
+    lamb_ = outcome[[6]]
+    b_ = outcome[[7]]
+    is_active_ = outcome[[8]]
+    is_active_1_ = outcome[[9]]
+    is_active_2_ = outcome[[10]]
     rm(outcome)
-    cat("df=", df, "|")
-    print(b[is_active])
   }
-  return(list(b, is_active, lamb, df))
+  return(list(b, is_active, is_active_1, is_active_2, lamb, df))
 }
-```
-
-# main
-
-## Data Simulation
-
-```{r}
-family = "logit"
-rho = 0.5
-n = 400
-p = 1000 
-s = 6
-pmax = 10
-beta_0 = c(0.05, 3, -2.5, 3.5, -1.5, -3)
-beta_1 = rep(0, p - s)
-beta = c(beta_0, beta_1)
-#sim = sim_data(beta, rho, n, family)
-x = sim[[1]]
-y = sim[[2]]
-```
-
-## A Test Case
-
-```{r}
-model = logit_lasso(x, y, pmax=10)
-b = model[[1]]
-is_active = model[[2]]
-lamb = model[[3]]
-df = model[[4]]
-
-print(b[1:10])
-print(b[is_active])
-print(lamb)
-```
 
