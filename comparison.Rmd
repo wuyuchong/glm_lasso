@@ -159,6 +159,11 @@ name_n = c("n = 200", "n = 400", "n = 800", "n = 1600", "n = 3200")
 ```
 
 ```{r}
+model = compare(rho = 0.5, n = 10000, p = 1000, gamma = 3, pmax = 9)
+```
+
+
+```{r}
 kable(trans(time_n, name_n), digit = 2, caption = "Time consuming - Comparison for two models when n is changed")
 ```
 
@@ -264,6 +269,7 @@ print(lamb)
 
 ```{r}
 model_glmnet = glmnet(x, y, family = "binomial", pmax = 10)
+print(model_glmnet)
 coef(model_glmnet, s = 0.04625)
 ```
 
