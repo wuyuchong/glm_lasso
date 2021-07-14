@@ -1,0 +1,29 @@
+---
+title: "Rcpp"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(Rcpp)
+library(RcppArmadillo)
+Sys.setenv("PKG_CXXFLAGS"="-std=c++11")
+```
+
+```{r}
+library(microbenchmark)
+library(rbenchmark)
+```
+
+```{r}
+sourceCpp("resp.cpp")
+```
+
+```{r}
+x = matrix(1:9, 3, 3)
+beta = c(2,3,4)
+Rcppresp(x, beta, family = "logit")
+benchmark(resp = resp(x, beta, 'logit'),
+               Rcppresp = Rcppresp(x, beta, 'logit'))
+```
+
